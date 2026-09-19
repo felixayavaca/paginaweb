@@ -10,7 +10,35 @@
 </head>
 <body>
   <h1>Detalles de Juego 1</h1>
-  <p>Aquí metes toda la info completa, requisitos o lo que quieras.</p>
+  <p>Write-Host "Iniciando reparacion de dependencias..." -ForegroundColor Cyan
+
+# 1. Habilitar e iniciar el servicio Windows Installer
+Set-Service -Name msiserver -StartupType Manual
+Start-Service -Name msiserver -ErrorAction SilentlyContinue
+
+# 2. Habilitar e iniciar Windows Update (necesario internamente por DISM)
+Set-Service -Name wuauserv -StartupType Manual
+Start-Service -Name wuauserv -ErrorAction SilentlyContinue
+
+# 3. Limpiar transacciones pendientes del CLFS/TxF que causan el HRESULT 0x80070003
+fsutil resource setautoreset true C:\
+
+# 4. Detectar la letra de la unidad donde esta la ISO montada
+$Drive = (Get-Volume | Where-Object { $_.DriveType -eq 'CD-ROM' -and $_.Size -gt 0 }).DriveLetter
+if (-not $Drive) {
+    # Si no es CD-ROM virtual, busca donde exista la carpeta sxs
+    $Drive = (Get-PSDrive -PSProvider FileSystem | Where-Object { Test-Path "$($_.Root)sources\sxs" }).Name
+}
+
+if ($Drive) {
+    Write-Host "ISO detectada en la unidad $Drive`:. Instalando .NET Framework 3.5..." -ForegroundColor Yellow
+    dism /online /enable-feature /featurename:NetFX3 /All /Source:"$($Drive):\sources\sxs" /LimitAccess
+} else {
+    Write-Host "No se detecto la ISO montada. Intentando instalar .NET 3.5 via online..." -ForegroundColor Yellow
+    dism /online /enable-feature /featurename:NetFX3 /All
+}
+
+Write-Host "Proceso terminado. Reinicia la máquina virtual e intenta instalar Office." -ForegroundColor Green.</p>
   <a href="index.html">← Volver al inicio</a>
 </body>
 </html>
